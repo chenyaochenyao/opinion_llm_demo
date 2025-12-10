@@ -803,7 +803,7 @@ with st.sidebar:
     st.header("⚙️ 配置")
 
     # API状态
-    if os.getenv("DEEPSEEK_API_KEY"):
+    if st.secrets["DEEPSEEK_API_KEY"]:
         st.success("✅ API已配置")
     else:
         st.error("❌ 未配置API密钥")
