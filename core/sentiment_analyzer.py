@@ -4,6 +4,7 @@ import json
 from typing import Dict, List, Any
 from openai import OpenAI
 from dotenv import load_dotenv
+import streamlit as st
 
 load_dotenv()
 
@@ -13,7 +14,7 @@ class FinancialSentimentAnalyzer:
 
     def __init__(self, api_key=None):
         """初始化分析器"""
-        self.api_key = api_key or os.getenv("DEEPSEEK_API_KEY")
+        self.api_key = st.secrets["DEEPSEEK_API_KEY"]
 
         if not self.api_key:
             raise ValueError("请设置DEEPSEEK_API_KEY环境变量")
