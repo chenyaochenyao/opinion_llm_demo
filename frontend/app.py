@@ -12,6 +12,7 @@ import os
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # 将根目录加入sys.path
 sys.path.append(ROOT_DIR)
+print(ROOT_DIR)
 #
 # # 导入分析模块
 # from core.industry_analyzer  import IndustryAnalyzer
@@ -782,11 +783,12 @@ def init_analyzer():
         return None
 
 
-# @st.cache_resource
 def init_integrator():
     """初始化数据集成器"""
     # print("初始化integrator...")
-    return DataIntegrator()
+    # current_dir = os.getcwd()
+    # print(f"当前工作目录: {current_dir}")
+    return DataIntegrator(data_dir=r".\core\generated_data")
 
 
 # 侧边栏
@@ -804,13 +806,14 @@ with st.sidebar:
 
     # API状态
     if st.secrets["DEEPSEEK_API_KEY"]:
+        # print(st.secrets["DEEPSEEK_API_KEY"])
         st.success("✅ API已配置")
     else:
         st.error("❌ 未配置API密钥")
 
     # 数据统计
     integrator = init_integrator()
-    print("test:",len(integrator.industries))
+    # print("test:",len(integrator.industries))
     st.metric("行业数据", len(integrator.industries))
     st.metric("公司数据", len(integrator.companies))
     st.metric("政策舆情", len(integrator.policies))
