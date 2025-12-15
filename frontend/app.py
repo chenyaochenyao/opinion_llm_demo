@@ -6,6 +6,10 @@ import sys
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # 将根目录加入sys.path
 sys.path.append(ROOT_DIR)
+# 用 os.path.join 自动适配分隔符（Windows \ / Linux /）
+DATA_DIR = os.path.join(ROOT_DIR, "core", "generated_data")
+print(DATA_DIR)
+
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
@@ -156,7 +160,7 @@ def init_analyzer():
 @st.cache_resource
 def init_integrator():
     """初始化数据集成器"""
-    return DataIntegrator(data_dir=r".\core\generated_data")
+    return DataIntegrator(data_dir=DATA_DIR)
 
 
 # 侧边栏
