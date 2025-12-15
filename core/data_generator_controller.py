@@ -67,13 +67,6 @@ class DataGeneratorController:
             self.save_data(risk_events_data, "risk_events.json")
 
             # 5. 生成财务时间序列数据
-            # companies_data = {}
-            # data_dir = r"D:\project\opinion_llm_demo\core\generated_data"
-            # filename="companies.json"
-            # filepath = os.path.join(data_dir, filename)
-            # if os.path.exists(filepath):
-            #     with open(filepath, "r", encoding="utf-8") as f:
-            #         companies_data[filename.replace(".json", "")] = json.load(f)
             print("步骤5/5: 生成财务时间序列数据...")
             financials_data = self.generate_financials_data(companies_data)
             self.save_data(financials_data, "financials.json")

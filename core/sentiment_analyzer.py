@@ -15,6 +15,7 @@ class FinancialSentimentAnalyzer:
     def __init__(self, api_key=None):
         """初始化分析器"""
         self.api_key = st.secrets["DEEPSEEK_API_KEY"]
+        self.model = "deepseek-chat"
 
         if not self.api_key:
             raise ValueError("请设置DEEPSEEK_API_KEY环境变量")
@@ -25,6 +26,16 @@ class FinancialSentimentAnalyzer:
         )
 
         print("✅ 舆情分析器初始化成功")
+        # self.api_key = st.secrets.get("GITEE_AI_API_KEY", "")
+        # if not self.api_key:
+        #     raise ValueError("请配置GITEE_AI_API_KEY（本地.env或云端Secrets）")
+        #
+        # self.client = OpenAI(
+        #     api_key=self.api_key,
+        #     base_url="https://ai.gitee.com/api/v1"
+        # )
+        # self.model = "fin-r1"
+        # print("✅ fin-r1测试客户端初始化完成")
 
     def analyze_industry_sentiment(self, industry_name: str, news_content: str) -> Dict:
         """
@@ -38,40 +49,47 @@ class FinancialSentimentAnalyzer:
             行业景气度分析结果
         """
         prompt = f"""
-请分析以下关于{industry_name}行业的舆情信息，并提供专业分析：
+        请分析以下关于{industry_name}行业的舆情信息，并提供专业分析：
 
-**舆情内容：**
-{news_content}
+        **舆情内容：**
+        {news_content}
 
-请从以下维度进行分析，并以JSON格式返回：
+        请从以下维度进行分析，并以JSON格式返回：
 
-1. **政策影响分析**
-   - 政策性质：利好/利空/中性
-   - 影响程度：高/中/低
-   - 具体影响：对行业的直接影响
+        1. **政策影响分析**
+           - 政策性质：利好/利空/中性
+           - 影响程度：高/中/低
+           - 具体影响：对行业的直接影响
 
-2. **景气度判断**
-   - 景气度评级：高涨/良好/一般/低迷
-   - 景气度得分：0-100分
-   - 趋势判断：上升/持平/下降
+        2. **景气度判断**
+           - 景气度评级：高涨/良好/一般/低迷
+           - 景气度得分：0-100分
+           - 趋势判断：上升/持平/下降
 
-3. **关联影响**
-   - 受益行业：哪些关联行业会受益
-   - 受损行业：哪些关联行业会受损
-   - 产业链影响：对上下游的影响
+        3. **关联影响**
+           - 受益行业：哪些关联行业会受益（列表形式）
+           - 受损行业：哪些关联行业会受损（列表形式）
+           - 产业链影响：
+             - 上游影响：对原材料、核心零部件、基础资源等上游环节的具体影响
+             - 中游影响：对生产制造、加工组装、设备供应等中游环节的具体影响
+             - 下游影响：对终端应用、分销渠道、消费市场等下游环节的具体影响
 
-4. **投资建议**
-   - 行业配置：建议增加/减少/维持
-   - 配置比例：建议持仓比例（%）
-   - 关注板块：具体关注哪些细分板块
+        4. **投资建议**
+           - 行业配置策略：从"超配/标配/低配/规避"中选择
+           - 核心关注板块：具体细分板块（列表形式），需标注每个板块的**核心逻辑**
+           - 风险收益比：简要评估该配置的潜在收益空间和风险敞口（例如"潜在收益20%-30%，下行风险10%以内"）
 
-5. **监控指标**
-   - 关键指标：需要重点监控的指标
-   - 风险提示：主要风险点
-   - 时间窗口：影响的持续时间
+        5. **监控指标**
+           - 关键指标：需要重点监控的指标（列表形式）
+           - 风险提示：主要风险点
+           - 时间窗口：影响的持续时间
 
-请确保分析专业、客观，符合金融分析的标准。
-"""
+        请确保：
+        1. JSON格式可直接解析，无多余文字、注释或格式错误；
+        2. 产业链影响需严格按上游/中游/下游拆分，每个维度描述具体、量化；
+        3. 所有列表类字段（受益行业、关注板块等）均以数组形式返回；
+        4. 分析专业、客观，符合金融行业分析标准，使用中文表述。
+        """
 
         response = self._call_llm(prompt, "你是资深的金融行业分析师")
 
@@ -146,7 +164,7 @@ class FinancialSentimentAnalyzer:
    - 预警信号：后续可能出现的危险信号
    - 时间窗口：风险爆发的时间预期
 
-请确保分析专业、客观，符合金融风控的标准。
+请确保分析专业、客观，符合金融风控的标准。请用中文生成。
 """
 
         response = self._call_llm(prompt, "你是经验丰富的金融风控专家")
@@ -236,7 +254,7 @@ class FinancialSentimentAnalyzer:
 4. 关键要点：总结3个关键点
 5. 建议行动：简要建议
 
-以JSON格式返回。
+以JSON格式返回。请用中文生成。
 """
 
         response = self._call_llm(prompt, "你是金融舆情分析师")
@@ -305,7 +323,7 @@ class FinancialSentimentAnalyzer:
    - 关键时间节点
    - 预警信号
 
-请确保建议具体、可操作。
+请确保建议具体、可操作。请用中文生成。
 """
 
         response = self._call_llm(prompt, "你是资深投资顾问")
@@ -322,7 +340,8 @@ class FinancialSentimentAnalyzer:
 
         try:
             response = self.client.chat.completions.create(
-                model="deepseek-chat",
+                # model="deepseek-chat",
+                model=self.model,
                 messages=messages,
                 temperature=0.3,
                 max_tokens=2000
