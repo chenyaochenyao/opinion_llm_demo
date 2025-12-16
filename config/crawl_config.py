@@ -11,7 +11,7 @@
 import sys
 sys.setdefaultencoding = lambda x, enc="utf-8": None
 
-TUSHARE_TOKEN="2a81c5e44a8c2e6195c557690878c3c5fa5f2cf30cce8e17c3e6d505"
+TUSHARE_TOKEN=""
 
 STOCK_CODE_PREFIX = ""
 

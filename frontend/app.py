@@ -141,6 +141,43 @@ def get_status_tag(text, type_category):
     return text
 
 
+def get_risk_tag(text, tag_type):
+    """生成风险等级标签样式"""
+    if tag_type == "severity":
+        # 严重等级标签（高/中/低）
+        if text == "高":
+            return f'<span style="color:#dc2626; background:#fef2f2; padding:0.3rem 0.8rem; border-radius:6px; font-weight:600;">{text}</span>'
+        elif text == "中":
+            return f'<span style="color:#f59e0b; background:#fffbeb; padding:0.3rem 0.8rem; border-radius:6px; font-weight:600;">{text}</span>'
+        elif text == "低":
+            return f'<span style="color:#10b981; background:#ecfdf5; padding:0.3rem 0.8rem; border-radius:6px; font-weight:600;">{text}</span>'
+        else:
+            return f'<span style="color:#6b7280; background:#f3f4f6; padding:0.3rem 0.8rem; border-radius:6px; font-weight:600;">未知</span>'
+    elif tag_type == "urgency":
+        # 紧急处置等级标签
+        if text == "立即处置":
+            return f'<span style="color:#dc2626; background:#fef2f2; padding:0.3rem 0.8rem; border-radius:6px; font-weight:600;">{text}</span>'
+        elif text == "近期关注（7日内）":
+            return f'<span style="color:#f59e0b; background:#fffbeb; padding:0.3rem 0.8rem; border-radius:6px; font-weight:600;">{text}</span>'
+        elif text == "常规监控（30日内）":
+            return f'<span style="color:#10b981; background:#ecfdf5; padding:0.3rem 0.8rem; border-radius:6px; font-weight:600;">{text}</span>'
+        else:
+            return f'<span style="color:#6b7280; background:#f3f4f6; padding:0.3rem 0.8rem; border-radius:6px; font-weight:600;">未知</span>'
+    elif tag_type == "risk_type":
+        # 风险类型标签
+        color_map = {
+            "债务逾期": "#ef4444", "担保违约": "#f97316", "高管失联/被查": "#8b5cf6",
+            "评级下调/展望负面": "#ec4899", "债券展期/回售违约": "#dc2626", "非标融资违约": "#9333ea",
+            "流动性危机": "#f59e0b", "资产查封冻结": "#14b8a6", "重大诉讼仲裁": "#3b82f6", "其他风险": "#6b7280"
+        }
+        tags = ""
+        for t in text:
+            color = color_map.get(t, "#6b7280")
+            tags += f'<span style="color:white; background:{color}; padding:0.2rem 0.6rem; border-radius:4px; margin-right:0.5rem; font-size:0.9rem;">{t}</span>'
+        return tags if tags else '<span style="color:#6b7280; background:#f3f4f6; padding:0.2rem 0.6rem; border-radius:4px;">未知</span>'
+
+
+
 # 标题
 st.title("🤖 金融舆情智能分析系统")
 st.markdown("Hi,今天想些了解什么呢？")
@@ -800,7 +837,7 @@ if analysis_mode != "数据看板":
                 col1, col2, col3 = st.columns(3, gap="large")
 
                 with col1:
-                    impact = result.get("政策影响分析", {}).get("政策性质", "未知")
+                    impact = result.get("舆情属性", {}).get("舆情倾向", "未知")
                     st.markdown(f"""
                     <div class="metric-card">
                         <div style="color:#718096; font-size:0.9rem; margin-bottom:0.5rem">政策性质</div>
@@ -809,7 +846,7 @@ if analysis_mode != "数据看板":
                     """, unsafe_allow_html=True)
 
                 with col2:
-                    sentiment = result.get("景气度判断", {}).get("景气度评级", "未知")
+                    sentiment = result.get("景气度分析", {}).get("景气度评级", "未知")
                     st.markdown(f"""
                     <div class="metric-card">
                         <div style="color:#718096; font-size:0.9rem; margin-bottom:0.5rem">景气度评级</div>
@@ -818,7 +855,7 @@ if analysis_mode != "数据看板":
                     """, unsafe_allow_html=True)
 
                 with col3:
-                    score = result.get("景气度判断", {}).get("景气度得分", 0)
+                    score = result.get("景气度分析", {}).get("景气度得分", 0)
                     # 景气度得分添加颜色渐变
                     score_color = "#2d87bb" if score >= 80 else "#ed8936" if score >= 60 else "#c53030"
                     st.markdown(f"""
@@ -832,126 +869,65 @@ if analysis_mode != "数据看板":
                     """, unsafe_allow_html=True)
 
                 # ===================== 详细分析Tabs（优化后） =====================
-                tabs = st.tabs(["📋 政策影响", "📈 景气度分析", "💡 投资建议", "🔍 监控指标"])
+                tabs = st.tabs(
+                    ["📋 舆情属性分析", "📈 景气度分析", "💡 资产配置建议", "🔗 产业链&跨行业影响", "⚙️ 动态调整策略"])
 
                 with tabs[0]:
-                    policy_impact = result.get("政策影响分析", {})
+                    # 舆情属性基础信息
+                    st.markdown('<div class="sub-header">基础舆情信息</div>', unsafe_allow_html=True)
+                    sentiment_attr = result.get("舆情属性", {})
 
-                    # 政策基础信息（优化排版）
-                    st.markdown('<div class="sub-header">基础政策信息</div>', unsafe_allow_html=True)
-                    policy_col1, policy_col2 = st.columns([1, 3])
-                    with policy_col1:
-                        st.write("**影响程度:**")
-                        # 影响程度添加可视化标识
-                        impact_level = policy_impact.get("影响程度", "未知")
+                    attr_col1, attr_col2, attr_col3 = st.columns(3)
+                    with attr_col1:
+                        st.write("**舆情类型:**")
+                        sentiment_types = sentiment_attr.get("舆情类型", [])
+                        if sentiment_types:
+                            type_tags = ""
+                            for t in sentiment_types:
+                                type_tags += f'<span style="background:#e8f4f8; color:#2d3748; padding:0.2rem 0.5rem; border-radius:4px; margin-right:0.3rem;">{t}</span>'
+                            st.markdown(type_tags, unsafe_allow_html=True)
+                        else:
+                            st.write("未知")
+
+                    with attr_col2:
+                        st.write("**影响强度:**")
+                        impact_level = sentiment_attr.get("影响强度", "未知")
                         level_icon = "🔴" if impact_level == "高" else "🟡" if impact_level == "中" else "🟢"
                         st.write(f"{level_icon} {impact_level}")
 
-                    with policy_col2:
-                        st.write("**具体影响:**")
-                        st.write(policy_impact.get("具体影响", "未知"))
+                    with attr_col3:
+                        st.write("**舆情倾向:**")
+                        st.write(get_status_tag(sentiment_attr.get("舆情倾向", "未知"), "policy"),
+                                 unsafe_allow_html=True)
 
-                    # 关联行业影响（优化展示）
-                    st.markdown('<div class="sub-header">关联行业影响</div>', unsafe_allow_html=True)
-                    related_impact = result.get("关联影响", {})
-                    col_benefit, col_harm = st.columns(2, gap="medium")
-
-                    with col_benefit:
-                        # 受益行业：绿色色块包裹标题+列表
-                        st.markdown("""
-                        <div style="background-color: #f0fff4; border: 1px solid #c6f6d5; border-radius: 8px; padding: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                            <div style="display:flex; align-items:center; gap: 0.5rem; margin-bottom: 0.8rem;">
-                                <span style="background-color: #22c55e; color: white; padding: 0.2rem 0.6rem; border-radius: 6px; font-weight: 600; font-size: 0.9rem;">✓</span>
-                                <h3 style="margin: 0; color: #166534; font-size: 1rem;">受益行业</h3>
-                            </div>
-                        """, unsafe_allow_html=True)
-
-                        benefit_industries = related_impact.get("受益行业", [])
-                        if benefit_industries:
-                            benefit_html = "<ul style='padding-left: 1.2rem; margin: 0; line-height: 1.8; color: #1e40af; list-style: disc;'>"
-                            for industry in benefit_industries:
-                                benefit_html += f"<li style='margin-bottom: 0.4rem;'>{industry}</li>"
-                            benefit_html += "</ul></div>"
-                            st.markdown(benefit_html, unsafe_allow_html=True)
-                        else:
-                            st.markdown('<div style="color: #6b7280; padding: 0.5rem 0;">暂无受益行业</div></div>',
-                                        unsafe_allow_html=True)
-
-                    with col_harm:
-                        # 受损行业：红色色块包裹标题+列表
-                        st.markdown("""
-                        <div style="background-color: #fff5f5; border: 1px solid #fecaca; border-radius: 8px; padding: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                            <div style="display:flex; align-items:center; gap: 0.5rem; margin-bottom: 0.8rem;">
-                                <span style="background-color: #ef4444; color: white; padding: 0.2rem 0.6rem; border-radius: 6px; font-weight: 600; font-size: 0.9rem;">✕</span>
-                                <h3 style="margin: 0; color: #991b1b; font-size: 1rem;">受损行业</h3>
-                            </div>
-                        """, unsafe_allow_html=True)
-
-                        harm_industries = related_impact.get("受损行业", [])
-                        if harm_industries:
-                            harm_html = "<ul style='padding-left: 1.2rem; margin: 0; line-height: 1.8; color: #991b1b; list-style: disc;'>"
-                            for industry in harm_industries:
-                                harm_html += f"<li style='margin-bottom: 0.4rem;'>{industry}</li>"
-                            harm_html += "</ul></div>"
-                            st.markdown(harm_html, unsafe_allow_html=True)
-                        else:
-                            st.markdown('<div style="color: #6b7280; padding: 0.5rem 0;">暂无受损行业</div></div>',
-                                        unsafe_allow_html=True)
-
-                    # 产业链影响（优化样式）
-                    st.markdown('<div class="sub-header">产业链影响（上中下游）</div>', unsafe_allow_html=True)
-                    chain_impact = related_impact.get("产业链影响", {})
-                    col_up, col_mid, col_down = st.columns(3, gap="medium")
-
-                    with col_up:
-                        st.markdown("""
-                        <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem;">
-                            <span style="color:#4299e1; font-size:1rem;">⛰️</span>
-                            <strong style="color:#2d3748;">上游影响</strong>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        up_impact = chain_impact.get("上游影响", "暂无")
-                        st.markdown(f"""
-                            <div class="chain-card" style="background-color:#e8f4f8; color:#2d3748;">
-                            {up_impact}
-                            </div>
-                            """, unsafe_allow_html=True)
-
-                    with col_mid:
-                        st.markdown("""
-                        <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem;">
-                            <span style="color:#9f7aea; font-size:1rem;">🏭</span>
-                            <strong style="color:#2d3748;">中游影响</strong>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        mid_impact = chain_impact.get("中游影响", "暂无")
-                        st.markdown(f"""
-                            <div class="chain-card" style="background-color:#fdf2f8; color:#2d3748;">
-                            {mid_impact}
-                            </div>
-                            """, unsafe_allow_html=True)
-
-                    with col_down:
-                        st.markdown("""
-                        <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem;">
-                            <span style="color:#38b2ac; font-size:1rem;">🛒</span>
-                            <strong style="color:#2d3748;">下游影响</strong>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        down_impact = chain_impact.get("下游影响", "暂无")
-                        st.markdown(f"""
-                            <div class="chain-card" style="background-color:#f5f5f5; color:#2d3748;">
-                            {down_impact}
-                            </div>
-                            """, unsafe_allow_html=True)
+                    # 具体影响
+                    st.markdown('<div class="sub-header">具体影响描述</div>', unsafe_allow_html=True)
+                    st.markdown(f"""
+                    <div style="background-color:#f8fafc; padding:1rem; border-radius:6px; line-height:1.6;">
+                        {sentiment_attr.get("具体影响", "暂无详细影响描述")}
+                    </div>
+                    """, unsafe_allow_html=True)
 
                 with tabs[1]:
-                    sentiment_analysis = result.get("景气度判断", {})
-                    st.write("**景气度评级:**", sentiment_analysis.get("景气度评级", "未知"))
-                    st.write("**景气度得分:**", sentiment_analysis.get("景气度得分", "未知"))
-                    st.write("**趋势判断:**", sentiment_analysis.get("趋势判断", "未知"))
+                    sentiment_analysis = result.get("景气度分析", {})
 
-                    # 可视化
+                    # 基础景气度信息
+                    st.markdown('<div class="sub-header">景气度核心指标</div>', unsafe_allow_html=True)
+                    sa_col1, sa_col2, sa_col3 = st.columns(3)
+                    with sa_col1:
+                        st.write("**景气度评级:**")
+                        st.write(get_status_tag(sentiment_analysis.get("景气度评级", "未知"), "sentiment"),
+                                 unsafe_allow_html=True)
+                    with sa_col2:
+                        st.write("**趋势判断:**")
+                        trend = sentiment_analysis.get("趋势判断", "未知")
+                        trend_icon = "📈" if trend == "上升" else "📊" if trend == "持平" else "📉"
+                        st.write(f"{trend_icon} {trend}")
+                    with sa_col3:
+                        st.write("**评分拆解:**")
+                        st.write(sentiment_analysis.get("评分拆解", "未知"))
+
+                    # 景气度得分可视化
                     score = sentiment_analysis.get("景气度得分", 50)
                     fig = go.Figure(go.Indicator(
                         mode="gauge+number",
@@ -971,43 +947,234 @@ if analysis_mode != "数据看板":
                     fig.update_layout(height=300)
                     st.plotly_chart(fig, use_container_width=True)
 
+                    # 趋势判断依据
+                    st.markdown('<div class="sub-header">趋势判断依据</div>', unsafe_allow_html=True)
+                    st.markdown(f"""
+                    <div style="background-color:#f8fafc; padding:1rem; border-radius:6px; line-height:1.6;">
+                        {sentiment_analysis.get("判断依据", "暂无判断依据")}
+                    </div>
+                    """, unsafe_allow_html=True)
+
                 with tabs[2]:
-                    investment = result.get("投资建议", {})
-                    st.markdown('<div class="sub-header">配置策略</div>', unsafe_allow_html=True)
+                    asset_config = result.get("资产标的与配置", {})
 
-                    # 配置策略卡片
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.markdown(f"""
-                        <div class="metric-card">
-                            <div style="color:#718096; font-size:0.9rem;">行业配置</div>
-                            <div style="font-size:1.5rem; font-weight:600; color:#22c55e;">{investment.get('行业配置策略', '未知')}</div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    with col2:
-                        st.markdown(f"""
-                        <div class="metric-card">
-                            <div style="color:#718096; font-size:0.9rem;">配置比例区间</div>
-                            <div style="font-size:1rem; font-weight:600;">{investment.get('配置比例区间', '未知')}</div>
-                        </div>
+                    # 关联资产标的
+                    st.markdown('<div class="sub-header">关联资产标的</div>', unsafe_allow_html=True)
+                    related_assets = asset_config.get("关联资产标的", {})
+
+                    asset_col1, asset_col2 = st.columns(2)
+                    with asset_col1:
+                        st.markdown("""
+                        <div style="background-color:#f0fff4; border:1px solid #c6f6d5; border-radius:8px; padding:1rem;">
+                            <div style="font-weight:600; color:#166534; margin-bottom:0.8rem;">📈 股票标的</div>
                         """, unsafe_allow_html=True)
 
-                    # 核心关注板块
-                    st.markdown('<div class="sub-header">核心关注板块</div>', unsafe_allow_html=True)
-                    for plate in investment.get('核心关注板块', []):
-                        with st.expander(f"📌 {plate.get('板块名称')}"):
-                            st.write(f"{plate.get('核心逻辑')}")
+                        stocks = related_assets.get("股票", [])
+                        if stocks:
+                            stock_html = "<ul style='padding-left:1.2rem; margin:0; line-height:1.8;'>"
+                            for stock in stocks:
+                                stock_html += f"<li style='margin-bottom:0.4rem;'>{stock}</li>"
+                            stock_html += "</ul></div>"
+                            st.markdown(stock_html, unsafe_allow_html=True)
+                        else:
+                            st.markdown('<div style="color:#6b7280;">暂无关联股票标的</div></div>',
+                                        unsafe_allow_html=True)
 
-                    # 投资节奏和风险收益
-                    # st.markdown('<div class="sub-header">投资节奏与风险收益</div>', unsafe_allow_html=True)
-                    # st.write(f"**投资节奏:** {investment.get('投资节奏', '未知')}")
-                    st.write(f"**风险收益比:** {investment.get('风险收益比', '未知')}")
+                    with asset_col2:
+                        st.markdown("""
+                        <div style="background-color:#e8f4f8; border:1px solid #90cdf4; border-radius:8px; padding:1rem;">
+                            <div style="font-weight:600; color:#2563eb; margin-bottom:0.8rem;">📜 债券标的</div>
+                        """, unsafe_allow_html=True)
+
+                        bonds = related_assets.get("债券", [])
+                        if bonds:
+                            bond_html = "<ul style='padding-left:1.2rem; margin:0; line-height:1.8;'>"
+                            for bond in bonds:
+                                bond_html += f"<li style='margin-bottom:0.4rem;'>{bond}</li>"
+                            bond_html += "</ul></div>"
+                            st.markdown(bond_html, unsafe_allow_html=True)
+                        else:
+                            st.markdown('<div style="color:#6b7280;">暂无关联债券标的</div></div>',
+                                        unsafe_allow_html=True)
+
+                    # 配置调整建议
+                    st.markdown('<div class="sub-header">配置调整建议</div>', unsafe_allow_html=True)
+                    config_suggest = asset_config.get("配置调整建议", {})
+
+                    config_col1, config_col2 = st.columns(2)
+                    with config_col1:
+                        st.markdown(f"""
+                        <div class="metric-card">
+                            <div style="color:#718096; font-size:0.9rem;">行业配置策略</div>
+                            <div style="font-size:1.5rem; font-weight:600; color:#22c55e;">{config_suggest.get('行业配置策略', '未知')}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                        st.markdown(f"""
+                        <div class="metric-card">
+                            <div style="color:#718096; font-size:0.9rem;">股票调整方向</div>
+                            <div style="font-size:1.2rem; font-weight:600;">{config_suggest.get('标的调整方向', {}).get('股票', '未知')}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                    with config_col2:
+                        st.markdown(f"""
+                        <div class="metric-card">
+                            <div style="color:#718096; font-size:0.9rem;">调整幅度建议</div>
+                            <div style="font-size:1rem; font-weight:600;">{config_suggest.get('调整幅度建议', '未知')}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                        st.markdown(f"""
+                        <div class="metric-card">
+                            <div style="color:#718096; font-size:0.9rem;">债券调整方向</div>
+                            <div style="font-size:1.2rem; font-weight:600;">{config_suggest.get('标的调整方向', {}).get('债券', '未知')}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                    # 风险收益比
+                    st.markdown('<div class="sub-header">风险收益比</div>', unsafe_allow_html=True)
+                    st.markdown(f"""
+                    <div style="background-color:#f8fafc; padding:1rem; border-radius:6px; line-height:1.6;">
+                        {config_suggest.get('风险收益比', '暂无风险收益分析')}
+                    </div>
+                    """, unsafe_allow_html=True)
 
                 with tabs[3]:
-                    monitoring = result.get("监控指标", {})
-                    st.write("**关键指标:**", monitoring.get("关键指标", []))
-                    st.write("**风险提示:**", monitoring.get("风险提示", "未知"))
-                    st.write("**时间窗口:**", monitoring.get("时间窗口", "未知"))
+                    chain_impact = result.get("产业链与跨行业影响", {})
+
+                    # 关联行业影响
+                    st.markdown('<div class="sub-header">关联行业影响</div>', unsafe_allow_html=True)
+                    col_benefit, col_harm = st.columns(2, gap="medium")
+
+                    with col_benefit:
+                        st.markdown("""
+                        <div style="background-color: #f0fff4; border: 1px solid #c6f6d5; border-radius: 8px; padding: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                            <div style="display:flex; align-items:center; gap: 0.5rem; margin-bottom: 0.8rem;">
+                                <span style="background-color: #22c55e; color: white; padding: 0.2rem 0.6rem; border-radius: 6px; font-weight: 600; font-size: 0.9rem;">✓</span>
+                                <h3 style="margin: 0; color: #166534; font-size: 1rem;">受益行业</h3>
+                            </div>
+                        """, unsafe_allow_html=True)
+
+                        benefit_industries = chain_impact.get("受益行业", [])
+                        if benefit_industries:
+                            benefit_html = "<ul style='padding-left: 1.2rem; margin: 0; line-height: 1.8; color: #1e40af; list-style: disc;'>"
+                            for industry in benefit_industries:
+                                benefit_html += f"<li style='margin-bottom: 0.4rem;'>{industry}</li>"
+                            benefit_html += "</ul></div>"
+                            st.markdown(benefit_html, unsafe_allow_html=True)
+                        else:
+                            st.markdown('<div style="color: #6b7280; padding: 0.5rem 0;">暂无受益行业</div></div>',
+                                        unsafe_allow_html=True)
+
+                    with col_harm:
+                        st.markdown("""
+                        <div style="background-color: #fff5f5; border: 1px solid #fecaca; border-radius: 8px; padding: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                            <div style="display:flex; align-items:center; gap: 0.5rem; margin-bottom: 0.8rem;">
+                                <span style="background-color: #ef4444; color: white; padding: 0.2rem 0.6rem; border-radius: 6px; font-weight: 600; font-size: 0.9rem;">✕</span>
+                                <h3 style="margin: 0; color: #991b1b; font-size: 1rem;">受损行业</h3>
+                            </div>
+                        """, unsafe_allow_html=True)
+
+                        harm_industries = chain_impact.get("受损行业", [])
+                        if harm_industries:
+                            harm_html = "<ul style='padding-left: 1.2rem; margin: 0; line-height: 1.8; color: #991b1b; list-style: disc;'>"
+                            for industry in harm_industries:
+                                harm_html += f"<li style='margin-bottom: 0.4rem;'>{industry}</li>"
+                            harm_html += "</ul></div>"
+                            st.markdown(harm_html, unsafe_allow_html=True)
+                        else:
+                            st.markdown('<div style="color: #6b7280; padding: 0.5rem 0;">暂无受损行业</div></div>',
+                                        unsafe_allow_html=True)
+
+                    # 产业链影响
+                    st.markdown('<div class="sub-header">产业链影响（上中下游）</div>', unsafe_allow_html=True)
+                    chain_detail = chain_impact.get("产业链影响", {})
+                    col_up, col_mid, col_down = st.columns(3, gap="medium")
+
+                    with col_up:
+                        st.markdown("""
+                        <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem;">
+                            <span style="color:#4299e1; font-size:1rem;">⛰️</span>
+                            <strong style="color:#2d3748;">上游影响</strong>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        up_impact = chain_detail.get("上游", "暂无")
+                        st.markdown(f"""
+                            <div class="chain-card" style="background-color:#e8f4f8; color:#2d3748;">
+                            {up_impact}
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                    with col_mid:
+                        st.markdown("""
+                        <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem;">
+                            <span style="color:#9f7aea; font-size:1rem;">🏭</span>
+                            <strong style="color:#2d3748;">中游影响</strong>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        mid_impact = chain_detail.get("中游", "暂无")
+                        st.markdown(f"""
+                            <div class="chain-card" style="background-color:#fdf2f8; color:#2d3748;">
+                            {mid_impact}
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                    with col_down:
+                        st.markdown("""
+                        <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem;">
+                            <span style="color:#38b2ac; font-size:1rem;">🛒</span>
+                            <strong style="color:#2d3748;">下游影响</strong>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        down_impact = chain_detail.get("下游", "暂无")
+                        st.markdown(f"""
+                            <div class="chain-card" style="background-color:#f5f5f5; color:#2d3748;">
+                            {down_impact}
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                    # 跨行业关系
+                    st.markdown('<div class="sub-header">跨行业替代/互补关系</div>', unsafe_allow_html=True)
+                    cross_industry = chain_impact.get("跨行业关系", [])
+                    if cross_industry:
+                        cross_html = "<div style='background-color:#f8fafc; border-radius:8px; padding:1rem;'>"
+                        for relation in cross_industry:
+                            cross_html += f"<div style='margin-bottom:0.8rem; padding-bottom:0.8rem; border-bottom:1px solid #e2e8f0;'>{relation}</div>"
+                        cross_html += "</div>"
+                        st.markdown(cross_html, unsafe_allow_html=True)
+                    else:
+                        st.write("暂无跨行业关系分析")
+
+                with tabs[4]:
+                    dynamic_adjust = result.get("动态调整支撑", {})
+
+                    # 调整触发条件
+                    st.markdown('<div class="sub-header">动态调整触发条件</div>', unsafe_allow_html=True)
+
+
+                    # 风险提示
+                    st.markdown('<div class="sub-header">风险提示</div>', unsafe_allow_html=True)
+                    risk_tips = dynamic_adjust.get("风险提示", [])
+                    if risk_tips:
+                        risk_html = "<div style='background-color:#fff5f5; border-radius:8px; padding:1rem;'>"
+                        for risk in risk_tips:
+                            risk_html += f"<div style='margin-bottom:0.5rem; display:flex; align-items:flex-start; gap:0.5rem;'>"
+                            risk_html += f"<span style='color:#ef4444;'>⚠️</span><span>{risk}</span></div>"
+                        risk_html += "</div>"
+                        st.markdown(risk_html, unsafe_allow_html=True)
+                    else:
+                        st.write("暂无风险提示")
+
+                    # 时间窗口
+                    st.markdown('<div class="sub-header">影响时间窗口</div>', unsafe_allow_html=True)
+                    time_window = dynamic_adjust.get("时间窗口", "未知")
+                    st.markdown(f"""
+                    <div class="metric-card">
+                        <div style="color:#718096; font-size:0.9rem;">持续影响周期</div>
+                        <div style="font-size:1.2rem; font-weight:600; color:#2d3748;">{time_window}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
                 # 原始数据
                 with st.expander("📋 查看原始分析数据"):
@@ -1458,9 +1625,33 @@ if analysis_mode != "数据看板":
                 risk_title = ""
                 risk_content = ""
 
-        # 分析按钮
+        # # 分析按钮
         if st.button("🔍 分析风险", type="primary") and risk_content:
-            with st.spinner("AI风险分析中..."):
+            # 记录开始时间
+            start_time = datetime.datetime.now()
+            # 优化的加载提示
+            with st.spinner("""
+                               🤖 AI正在深度分析中...预计需要30-60秒：
+                           """):
+                # 模拟进度提示（可选，如果分析过程可以分段的话）
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+
+                # 模拟分步处理（实际使用时替换为真实分析步骤）
+                status_text.text("正在解析政策文本... (1/4)")
+                progress_bar.progress(25)
+                time.sleep(7)
+
+                status_text.text("正在分析行业关联影响... (2/4)")
+                progress_bar.progress(50)
+                time.sleep(7)
+
+                status_text.text("正在评估景气度指标... (3/4)")
+                progress_bar.progress(75)
+                time.sleep(7)
+
+                status_text.text("正在生成投资建议... (4/4)")
+                progress_bar.progress(100)
                 # 进行分析
                 result = analyzer.analyze_company_risk(
                     selected_company,
@@ -1468,129 +1659,285 @@ if analysis_mode != "数据看板":
                     company_info
                 )
 
-                # 显示结果
-                st.success("✅ 风险分析完成")
+                # 记录结束时间
+                end_time = datetime.datetime.now()
+                analysis_duration = (end_time - start_time).total_seconds()
+
+                # 清除进度提示
+                progress_bar.empty()
+                status_text.empty()
+
+                # 显示完成提示
+                st.success(f"✅ 分析完成！本次分析耗时：{analysis_duration:.1f} 秒")
 
                 # 结果展示
                 st.subheader("📊 风险分析结果")
-
-                # 关键指标
-                col1, col2, col3 = st.columns(3)
+                col1, col2, col3, col4 = st.columns(4)
 
                 with col1:
-                    risk_type = result.get("风险识别", {}).get("风险类型", "未知")
-                    st.metric("风险类型", risk_type)
+                    risk_type = result.get("负面舆情识别", {}).get("风险类型", [])
+                    st.markdown(f"""
+                    <div class="metric-card">
+                        <div style="color:#64748b; font-size:0.9rem; margin-bottom:0.5rem">风险类型</div>
+                        <div style="font-size:0.95rem; line-height:1.5;">{get_risk_tag(risk_type, "risk_type")}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
                 with col2:
-                    severity = result.get("风险识别", {}).get("严重程度", "未知")
-                    st.metric("严重程度", severity)
+                    severity = result.get("负面舆情识别", {}).get("严重等级", "未知")
+                    st.markdown(f"""
+                    <div class="metric-card">
+                        <div style="color:#64748b; font-size:0.9rem; margin-bottom:0.5rem">严重等级</div>
+                        <div style="font-size:1.4rem; font-weight:600;">{get_risk_tag(severity, "severity")}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
                 with col3:
-                    urgency = result.get("处置建议", {}).get("紧急程度", "未知")
-                    st.metric("紧急程度", urgency)
+                    urgency = result.get("风险处置建议", {}).get("紧急处置等级", "未知")
+                    st.markdown(f"""
+                    <div class="metric-card">
+                        <div style="color:#64748b; font-size:0.9rem; margin-bottom:0.5rem">处置等级</div>
+                        <div style="font-size:1.1rem; font-weight:600;">{get_risk_tag(urgency, "urgency")}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
-                # 详细分析
-                tabs = st.tabs(["风险识别", "影响评估", "处置建议", "监控预警"])
+                with col4:
+                    risk_nature = result.get("负面舆情识别", {}).get("风险定性", "未知")
+                    st.markdown(f"""
+                    <div class="metric-card">
+                        <div style="color:#64748b; font-size:0.9rem; margin-bottom:0.5rem">风险定性</div>
+                        <div style="font-size:1.1rem; font-weight:600; color:#dc2626;">{risk_nature}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                # ===================== 详细分析Tabs =====================
+                tabs = st.tabs(["📝 舆情识别", "🌐 影响传导", "📊 风险量化", "🛠️ 处置建议"])
 
                 with tabs[0]:
-                    risk_identification = result.get("风险识别", {})
-                    st.write("**风险类型:**", risk_identification.get("风险类型", "未知"))
-                    st.write("**风险事件:**", risk_identification.get("风险事件", "未知"))
-                    st.write("**严重程度:**", risk_identification.get("严重程度", "未知"))
+                    # st.markdown("### 负面舆情精准识别")
+                    risk_identification = result.get("负面舆情识别", {})
+
+                    # 风险事件详情
+                    st.markdown('<div class="sub-header">风险事件详情</div>', unsafe_allow_html=True)
+                    st.markdown(f"""
+                    <div style="background-color:#f8fafc; padding:1rem; border-radius:6px; line-height:1.6;">
+                        {risk_identification.get("风险事件详情", "暂无详细信息")}
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    # 基础风险信息
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.write("**风险类型:**")
+                        st.markdown(get_risk_tag(risk_identification.get("风险类型", []), "risk_type"), unsafe_allow_html=True)
+                    with col2:
+                        st.write("**严重等级:**")
+                        st.markdown(get_risk_tag(risk_identification.get("严重等级", "未知"), "severity"),
+                                    unsafe_allow_html=True)
+                    with col3:
+                        st.write("**风险定性:**")
+                        st.write(
+                            f"<span style='color:#dc2626; font-weight:600;'>{risk_identification.get('风险定性', '未知')}</span>",
+                            unsafe_allow_html=True)
 
                 with tabs[1]:
-                    impact_assessment = result.get("影响评估", {})
-                    st.write("**对股价影响:**", impact_assessment.get("对股价影响", "未知"))
-                    st.write("**对债券评级:**", impact_assessment.get("对债券评级", "未知"))
-                    st.write("**财务影响:**", impact_assessment.get("财务影响", "未知"))
+                    st.markdown("### 影响范围与传导路径")
+                    impact_scope = result.get("影响范围与传导路径", {})
 
-                    # 风险矩阵可视化
-                    severity_map = {"高": 90, "中": 60, "低": 30}
-                    impact_map = {"重大负面": 90, "轻微负面": 60, "中性": 30, "轻微正面": 10}
+                    # 基础影响信息
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.write("**影响范围:**")
+                        scope = impact_scope.get("影响范围", "未知")
+                        scope_color = "#dc2626" if scope == "全行业" else "#f59e0b" if scope == "关联企业" else "#10b981"
+                        st.write(f"<span style='color:{scope_color}; font-weight:600;'>{scope}</span>", unsafe_allow_html=True)
 
-                    severity_score = severity_map.get(severity, 50)
-                    impact_score = impact_map.get(
-                        impact_assessment.get("对股价影响", "中性"),
-                        50
-                    )
+                        st.write("**直接影响对象:**")
+                        impact_objects = impact_scope.get("直接影响对象", [])
+                        if impact_objects:
+                            obj_html = "<ul style='padding-left:1.2rem; line-height:1.8;'>"
+                            for obj in impact_objects:
+                                obj_html += f"<li>{obj}</li>"
+                            obj_html += "</ul>"
+                            st.markdown(obj_html, unsafe_allow_html=True)
+                        else:
+                            st.write("未知")
 
-                    fig = go.Figure()
+                    with col2:
+                        # 传导路径分析
+                        st.write("**传导路径概览:**")
+                        st.markdown(f"""
+                        <div style="background-color:#f1f5f9; padding:1rem; border-radius:6px; height:100%;">
+                            <strong>市场传导:</strong> {impact_scope.get('传导路径分析', {}).get('市场传导', '未知')}
+                        </div>
+                        """, unsafe_allow_html=True)
 
-                    # 添加风险区域
-                    fig.add_shape(
-                        type="rect",
-                        x0=0, y0=0, x1=50, y1=50,
-                        fillcolor="green",
-                        opacity=0.1,
-                        line_width=0
-                    )
-                    fig.add_shape(
-                        type="rect",
-                        x0=50, y0=0, x1=100, y1=50,
-                        fillcolor="yellow",
-                        opacity=0.1,
-                        line_width=0
-                    )
-                    fig.add_shape(
-                        type="rect",
-                        x0=0, y0=50, x1=50, y1=100,
-                        fillcolor="yellow",
-                        opacity=0.1,
-                        line_width=0
-                    )
-                    fig.add_shape(
-                        type="rect",
-                        x0=50, y0=50, x1=100, y1=100,
-                        fillcolor="red",
-                        opacity=0.1,
-                        line_width=0
-                    )
+                    # 详细传导路径
+                    st.markdown('<div class="sub-header">传导路径详细分析</div>', unsafe_allow_html=True)
+                    transfer_analysis = impact_scope.get("传导路径分析", {})
 
-                    # 添加风险点
-                    fig.add_trace(go.Scatter(
-                        x=[severity_score],
-                        y=[impact_score],
-                        mode='markers+text',
-                        marker=dict(size=20, color='red'),
-                        text=[selected_company[:4]],
-                        textposition="top center",
-                        name="风险位置"
-                    ))
+                    col_up, col_mid, col_down = st.columns(3)
+                    with col_up:
+                        st.markdown("""
+                        <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem;">
+                            <span style="color:#ef4444; font-size:1rem;">🔴</span>
+                            <strong style="color:#1e293b;">内部传导</strong>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        st.markdown(f"""
+                            <div style="background-color:#fef2f2; padding:0.8rem; border-radius:6px; height:100%;">
+                            {transfer_analysis.get('内部传导', '暂无')}
+                            </div>
+                            """, unsafe_allow_html=True)
 
-                    fig.update_layout(
-                        title="风险矩阵（严重程度 vs 影响）",
-                        xaxis_title="严重程度",
-                        yaxis_title="影响程度",
-                        xaxis_range=[0, 100],
-                        yaxis_range=[0, 100],
-                        height=400,
-                        showlegend=False
-                    )
-                    st.plotly_chart(fig, use_container_width=True)
+                    with col_mid:
+                        st.markdown("""
+                        <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem;">
+                            <span style="color:#f59e0b; font-size:1rem;">🟡</span>
+                            <strong style="color:#1e293b;">外部传导</strong>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        st.markdown(f"""
+                            <div style="background-color:#fffbeb; padding:0.8rem; border-radius:6px; height:100%;">
+                            {transfer_analysis.get('外部传导', '暂无')}
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                    with col_down:
+                        st.markdown("""
+                        <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem;">
+                            <span style="color:#3b82f6; font-size:1rem;">🔵</span>
+                            <strong style="color:#1e293b;">市场传导</strong>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        st.markdown(f"""
+                            <div style="background-color:#eff6ff; padding:0.8rem; border-radius:6px; height:100%;">
+                            {transfer_analysis.get('市场传导', '暂无')}
+                            </div>
+                            """, unsafe_allow_html=True)
 
                 with tabs[2]:
-                    disposal_suggestions = result.get("处置建议", {})
-                    st.write("**紧急程度:**", disposal_suggestions.get("紧急程度", "未知"))
-                    st.write("**具体措施:**", disposal_suggestions.get("具体措施", "未知"))
-                    st.write("**减仓建议:**", disposal_suggestions.get("减仓建议", "未知"))
+                    st.markdown("### 风险量化评估")
+                    risk_quantify = result.get("风险量化评估", {})
 
-                    # 操作建议卡片
-                    if disposal_suggestions.get("具体措施"):
-                        st.info("💡 **操作建议:**")
-                        measures = disposal_suggestions["具体措施"].split('\n')
-                        for measure in measures:
-                            if measure.strip():
-                                st.markdown(f"- {measure}")
+                    # 核心量化指标
+                    col3, col4 = st.columns(2)
+
+                    with col3:
+                        st.markdown(f"""
+                        <div class="metric-card">
+                            <div style="color:#64748b; font-size:0.9rem;">损失预估</div>
+                            <div style="font-size:0.95rem; font-weight:600; margin-top:0.5rem;">{risk_quantify.get('损失预估', '未知')}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    with col4:
+                        st.markdown(f"""
+                        <div class="metric-card">
+                            <div style="color:#64748b; font-size:0.9rem;">市场影响程度</div>
+                            <div style="font-size:0.95rem; font-weight:600; margin-top:0.5rem;">{risk_quantify.get('市场影响程度', '未知')}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                    # # 风险矩阵可视化（优化版）
+                    # st.markdown('<div class="sub-header">风险矩阵分析</div>', unsafe_allow_html=True)
+                    # # 重新定义映射关系（适配新的风险等级）
+                    # severity_map = {"高": 90, "中": 60, "低": 30}
+                    # # 基于偿债能力影响定义影响分数
+                    # impact_map = {"严重削弱": 90, "一定影响": 60, "基本无影响": 30}
+                    #
+                    # severity_score = severity_map.get(result.get("负面舆情识别", {}).get("严重等级"), 50)
+                    # impact_score = impact_map.get(risk_quantify.get("偿债能力影响", "基本无影响"), 50)
+                    #
+                    # fig = go.Figure()
+                    #
+                    # # 添加风险区域（红/黄/绿）
+                    # fig.add_shape(type="rect", x0=0, y0=0, x1=50, y1=50, fillcolor="green", opacity=0.1, line_width=0,
+                    #               name="低风险")
+                    # fig.add_shape(type="rect", x0=50, y0=0, x1=100, y1=50, fillcolor="yellow", opacity=0.1,
+                    #               line_width=0, name="中风险")
+                    # fig.add_shape(type="rect", x0=0, y0=50, x1=50, y1=100, fillcolor="yellow", opacity=0.1,
+                    #               line_width=0)
+                    # fig.add_shape(type="rect", x0=50, y0=50, x1=100, y1=100, fillcolor="red", opacity=0.2, line_width=0,
+                    #               name="高风险")
+                    #
+                    # # 添加风险点（带企业名称）- 完全符合 Plotly Scatter 规范
+                    # fig.add_trace(go.Scatter(
+                    #     x=[severity_score],
+                    #     y=[impact_score],
+                    #     mode='markers+text',
+                    #     marker=dict(size=25, color='red', symbol='triangle-up'),
+                    #     text=[selected_company],
+                    #     textposition="top center",
+                    #     # 正确配置：textfont 仅用支持的属性，加粗通过 "Bold" 字体实现
+                    #     textfont=dict(
+                    #         size=12,  # 字体大小（支持）
+                    #         color="black",  # 字体颜色（支持）
+                    #         family="Arial Bold, Times New Roman Bold"  # 加粗字体（核心修复点）
+                    #     ),
+                    #     name="当前风险位置"
+                    # ))
+                    #
+                    # # 布局优化
+                    # fig.update_layout(
+                    #     title="风险矩阵（严重程度 vs 偿债能力影响）",
+                    #     xaxis_title="风险严重程度（高→低）",
+                    #     yaxis_title="偿债能力影响（高→低）",
+                    #     xaxis_range=[0, 100],
+                    #     yaxis_range=[0, 100],
+                    #     height=450,
+                    #     showlegend=True,
+                    #     legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5)
+                    # )
+                    # st.plotly_chart(fig, use_container_width=True)
 
                 with tabs[3]:
-                    monitoring = result.get("预警指标", {})
-                    st.write("**监控指标:**", monitoring.get("监控指标", []))
-                    st.write("**预警信号:**", monitoring.get("预警信号", "未知"))
-                    st.write("**时间窗口:**", monitoring.get("时间窗口", "未知"))
+                    st.markdown("### 风险处置建议")
+                    disposal = result.get("风险处置建议", {})
 
-                # 原始数据
-                with st.expander("📋 查看原始分析数据"):
-                    st.json(result)
+                    # 紧急处置等级
+                    # st.write("**紧急处置等级:**")
+                    # st.markdown(get_risk_tag(disposal.get("紧急处置等级", "未知"), "urgency"), unsafe_allow_html=True)
+
+                    # 分场景处置措施
+                    # st.markdown('<div class="sub-header">分场景处置措施</div>', unsafe_allow_html=True)
+                    measures = disposal.get("分场景处置措施", {})
+
+                    # 持仓机构操作建议
+                    st.markdown("#### 📈 持仓机构操作建议")
+                    st.markdown(f"""
+                    <div class="suggestion-card">
+                        {measures.get('持仓机构操作建议', '暂无具体建议')}
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    # 风险对冲策略
+                    st.markdown("#### 🛡️ 风险对冲策略")
+                    st.markdown(f"""
+                    <div class="suggestion-card" style="border-left-color:#8b5cf6;">
+                        {measures.get('风险对冲策略', '暂无具体建议')}
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    # 投后管理措施
+                    st.markdown("#### 📊 投后管理措施")
+                    st.markdown(f"""
+                    <div class="suggestion-card" style="border-left-color:#14b8a6;">
+                        {measures.get('投后管理措施', '暂无具体建议')}
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    # 风险缓释手段
+                    st.markdown('<div class="sub-header">风险缓释手段分析</div>', unsafe_allow_html=True)
+                    st.markdown(f"""
+                    <div style="background-color:#ecfdf5; padding:1rem; border-radius:6px; border-left:4px solid #10b981;">
+                        {disposal.get('风险缓释手段', '暂无分析')}
+                    </div>
+                    """, unsafe_allow_html=True)
+
+
+                # ===================== 原始数据展开栏 =====================
+                with st.expander("📋 查看原始分析数据（JSON）", expanded=False):
+                    st.json(result, expanded=False)
 
     elif analysis_mode == "批量舆情分析":
         st.header("📰 批量舆情分析")
