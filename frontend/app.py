@@ -49,12 +49,14 @@ st.markdown("""
 
 /* 卡片样式优化 */
 .metric-card {
-    background-color: #f8f9fa;
-    border-radius: 12px;
+    background-color: #f8fafc;
     padding: 1.2rem;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    border: 1px solid #e9ecef;
-    transition: all 0.3s ease;
+    border-radius: 8px;
+    height: 120px;  /* 固定卡片高度，确保所有卡片大小一致 */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;  /* 内容垂直居中 */
+    margin-bottom: 1rem;  /* 卡片之间的间距 */
 }
 .metric-card:hover {
     box-shadow: 0 4px 12px rgba(0,0,0,0.12);
@@ -108,7 +110,22 @@ st.markdown("""
     margin: 1.5rem 0 0.8rem 0;
     color: #2d3748;
 }
-
+/* 优化折叠框样式：增加内边距，避免内容挤压 */
+div[data-testid="stExpander"] {
+    margin-top: 1.5rem !important;  /* 与上方内容留1.5rem间距 */
+    margin-bottom: 1rem !important; /* 与下方内容也留间距，避免底部挤压 */
+}
+.st-expander {
+    margin-top: 0.5rem !important;  /* 与上方卡片拉开间距 */
+    padding: 0.5rem !important;
+    border-radius: 8px !important;
+    background-color: #f8fafc !important;
+}
+/* 折叠框标题样式优化 */
+.st-expanderHeader {
+    padding: 0.8rem !important;
+    font-size: 0.95rem !important;
+}
 /* 文本样式优化 */
 .stMarkdown p {
     line-height: 1.7;
@@ -340,7 +357,23 @@ if analysis_mode == "数据看板":
                 title='行业热度排行'
             )
             fig.update_layout(height=350)
-            st.plotly_chart(fig, use_container_width=True)
+            chart_config = {
+                # 禁用工具栏所有按钮（放大、缩小、下载、平移等）
+                'displayModeBar': False,
+                # 可选：若需保留部分按钮，精准禁用指定功能（二选一）
+                'modeBarButtonsToRemove': [
+                #     'zoom2d', 'pan2d', 'select2d', 'lasso2d',  # 放大/平移/选择
+                #     'zoomIn2d', 'zoomOut2d',  # 放大/缩小按钮
+                    'resetScale2d', 'download'  # 重置/下载按钮
+                ],
+                # 禁用右键菜单（可选）
+                'displaylogo': False,
+                'responsive': True
+            }
+
+            # 渲染图表并应用配置
+            st.plotly_chart(fig, use_container_width=True, config=chart_config)
+
         else:
             st.info("暂无行业数据")
 
@@ -443,7 +476,23 @@ if analysis_mode == "数据看板":
                 #             }
                 #             </style>
                 #             """, unsafe_allow_html=True)
-                st.plotly_chart(fig, use_container_width=True)
+                chart_config = {
+                    # 禁用工具栏所有按钮（放大、缩小、下载、平移等）
+                    'displayModeBar': False,
+                    # 可选：若需保留部分按钮，精准禁用指定功能（二选一）
+                    'modeBarButtonsToRemove': [
+                    #     'zoom2d', 'pan2d', 'select2d', 'lasso2d',  # 放大/平移/选择
+                    #     'zoomIn2d', 'zoomOut2d',  # 放大/缩小按钮
+                        'resetScale2d', 'download'  # 重置/下载按钮
+                    ],
+                    # 禁用右键菜单（可选）
+                    'displaylogo': False,
+                    'responsive': True
+                }
+
+                # 渲染图表并应用配置
+                st.plotly_chart(fig, use_container_width=True, config=chart_config)
+
             else:
                 st.info("暂无时间数据")
         else:
@@ -516,7 +565,22 @@ if analysis_mode == "数据看板":
                 title='政策影响类型分布'
             )
             fig.update_layout(height=300)
-            st.plotly_chart(fig, use_container_width=True)
+            chart_config = {
+                # 禁用工具栏所有按钮（放大、缩小、下载、平移等）
+                'displayModeBar': False,
+                # 可选：若需保留部分按钮，精准禁用指定功能（二选一）
+                'modeBarButtonsToRemove': [
+                    #     'zoom2d', 'pan2d', 'select2d', 'lasso2d',  # 放大/平移/选择
+                    #     'zoomIn2d', 'zoomOut2d',  # 放大/缩小按钮
+                    'resetScale2d', 'download'  # 重置/下载按钮
+                ],
+                # 禁用右键菜单（可选）
+                'displaylogo': False,
+                'responsive': True
+            }
+
+            # 渲染图表并应用配置
+            st.plotly_chart(fig, use_container_width=True, config=chart_config)
         else:
             st.info("暂无政策数据")
 
@@ -875,6 +939,26 @@ if analysis_mode != "数据看板":
                     ["📋 舆情属性分析", "📈 景气度分析", "💡 资产配置建议", "🔗 产业链&跨行业影响", "⚙️ 风险提示"])
 
                 with tabs[0]:
+                    # 提前处理换行符（规避f-string反斜杠报错）
+                    processed_content = news_content.replace('\n', '<br>').replace('\r\n',
+                                                                                   '<br>') if news_content else "暂无舆情内容"
+                    # 标题兜底
+                    show_title = news_title if news_title else "暂无标题"
+
+                    # 一体化卡片：标题+内容在同一个容器内
+                    full_html = f"""
+                        <div style="background-color:#f0f8fb; padding:1.5rem; border-radius:8px; margin-bottom:1.5rem;">
+                            <!-- 标题行（加粗突出） -->
+                            <div style="font-size:1.1rem; font-weight:700; color:#2d3748; margin-bottom:1rem; border-bottom:1px solid #e2e8f0; padding-bottom:0.8rem;">
+                                {show_title}
+                            </div>
+                            <!-- 内容行（紧跟标题下方） -->
+                            <div style="font-size:1rem; color:#2d3748; line-height:1.8;">
+                                {processed_content}
+                            </div>
+                        </div>
+                        """
+                    st.markdown(full_html, unsafe_allow_html=True)
                     # 舆情属性基础信息
                     st.markdown('<div class="sub-header">基础舆情信息</div>', unsafe_allow_html=True)
                     sentiment_attr = result.get("舆情属性", {})
@@ -914,48 +998,133 @@ if analysis_mode != "数据看板":
                     sentiment_analysis = result.get("景气度分析", {})
 
                     # 基础景气度信息
-                    st.markdown('<div class="sub-header">景气度核心指标</div>', unsafe_allow_html=True)
-                    sa_col1, sa_col2, sa_col3 = st.columns(3)
+                    # st.markdown('<div class="sub-header">景气度核心指标</div>', unsafe_allow_html=True)
+                    # sa_col1, sa_col2, sa_col3 = st.columns(3)
+                    sa_col1=st.columns(1)[0]
+                    # with sa_col1:
+                    #     st.write("**景气度得分:**")
+                    #     st.write(get_status_tag(sentiment_analysis.get("景气度得分", 50), "sentiment"),
+                    #              unsafe_allow_html=True)
+                    # with sa_col2:
+                    #     st.write("**趋势判断:**")
+                    #     trend = sentiment_analysis.get("趋势判断", "未知")
+                    #     trend_icon = "📈" if trend == "上升" else "📊" if trend == "持平" else "📉"
+                    #     st.write(f"{trend_icon} {trend}")
                     with sa_col1:
-                        st.write("**景气度评级:**")
-                        st.write(get_status_tag(sentiment_analysis.get("景气度评级", "未知"), "sentiment"),
-                                 unsafe_allow_html=True)
-                    with sa_col2:
-                        st.write("**趋势判断:**")
-                        trend = sentiment_analysis.get("趋势判断", "未知")
-                        trend_icon = "📈" if trend == "上升" else "📊" if trend == "持平" else "📉"
-                        st.write(f"{trend_icon} {trend}")
-                    with sa_col3:
-                        st.write("**评分拆解:**")
-                        st.write(sentiment_analysis.get("评分拆解", "未知"))
+                        st.markdown('<div class="sub-header">景气度得分</div>', unsafe_allow_html=True)
+
+                        # 获取评分拆解数据，做空值兜底
+                        score_detail = sentiment_analysis.get("评分拆解", {})
+                        # 兼容不同字段命名（适配"评分逻辑"字段）
+                        score_data = score_detail if score_detail else sentiment_analysis.get("评分逻辑", {})
+
+                        if not score_data:
+                            st.info("暂无评分拆解数据")
+                        else:
+                            # 定义维度配置（名称+配色，提升视觉区分度）
+                            score_dimensions = [
+                                {"name": "政策支撑度", "color": "#3b82f6", "max_score": 30},  # 满分30
+                                {"name": "技术成熟度", "color": "#10b981", "max_score": 25},  # 满分25
+                                {"name": "市场需求", "color": "#f59e0b", "max_score": 25},  # 满分25
+                                {"name": "产业链配套", "color": "#8b5cf6", "max_score": 20}  # 满分20
+                            ]
+
+                            # 拆分成2组，每组2个维度（实现2×2布局）
+                            for i in range(0, len(score_dimensions), 2):
+                                # 每行创建2列
+                                col_a, col_b = st.columns(2, gap="small")
+
+                                # 处理第1个维度（左列）
+                                dim1 = score_dimensions[i]
+                                with col_a:
+                                    dim_name1 = dim1["name"]
+                                    current_score1 = score_data.get(dim_name1, 0)
+                                    max_score1 = dim1["max_score"]
+                                    score_color1 = dim1["color"]
+                                    score_ratio1 = current_score1 / max_score1 if max_score1 > 0 else 0
+                                    # 卡片式展示
+                                    st.markdown(f"""
+                                    <div style="background-color:#f8fafc; padding:1rem; border-radius:8px; height:130px;">
+                                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                                            <span style="font-size:0.95rem; font-weight:500; color:#1f2937;">{dim_name1}</span>
+                                            <span style="font-size:1rem; font-weight:600; color:{score_color1};">
+                                                {current_score1}/{max_score1}
+                                            </span>
+                                        </div>
+                                        <!-- 进度条 -->
+                                        <div style="height:8px; background-color:#e5e7eb; border-radius:4px; overflow:hidden;">
+                                            <div style="width:{score_ratio1 * 100}%; height:100%; background-color:{score_color1}; border-radius:4px;"></div>
+                                        </div>
+                                        <div style="font-size:0.8rem; color:#6b7280; margin-top:0.3rem;">
+                                            占比：{score_ratio1 * 100:.1f}%
+                                        </div>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+
+                                # 处理第2个维度（右列，避免数组越界）
+                                if i + 1 < len(score_dimensions):
+                                    dim2 = score_dimensions[i + 1]
+                                    with col_b:
+                                        dim_name2 = dim2["name"]
+                                        current_score2 = score_data.get(dim_name2, 0)
+                                        max_score2 = dim2["max_score"]
+                                        score_color2 = dim2["color"]
+                                        score_ratio2 = current_score2 / max_score2 if max_score2 > 0 else 0
+                                        # 卡片式展示
+                                        st.markdown(f"""
+                                        <div style="background-color:#f8fafc; padding:1rem; border-radius:8px; height:130px;">
+                                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                                                <span style="font-size:0.95rem; font-weight:500; color:#1f2937;">{dim_name2}</span>
+                                                <span style="font-size:1rem; font-weight:600; color:{score_color2};">
+                                                    {current_score2}/{max_score2}
+                                                </span>
+                                            </div>
+                                            <!-- 进度条 -->
+                                            <div style="height:8px; background-color:#e5e7eb; border-radius:4px; overflow:hidden;">
+                                                <div style="width:{score_ratio2 * 100}%; height:100%; background-color:{score_color2}; border-radius:4px;"></div>
+                                            </div>
+                                            <div style="font-size:0.8rem; color:#6b7280; margin-top:0.3rem;">
+                                                占比：{score_ratio2 * 100:.1f}%
+                                            </div>
+                                        </div>
+                                        """, unsafe_allow_html=True)
+                            total_score = sum(score_data.values())
+                            st.markdown(f"""
+                                    <div style="margin-top:1rem; padding:1rem; background-color:#eff6ff; border-radius:8px; text-align:center;">
+                                        <span style="font-size:0.9rem; color:#4b5563;">景气度总分</span>
+                                        <div style="font-size:1.8rem; font-weight:700; color:#2563eb;">
+                                            {total_score}/100
+                                        </div>
+                                    </div>
+                                    """, unsafe_allow_html=True)
 
                     # 景气度得分可视化
-                    score = sentiment_analysis.get("景气度得分", 50)
-                    fig = go.Figure(go.Indicator(
-                        mode="gauge+number",
-                        value=score,
-                        domain={'x': [0, 1], 'y': [0, 1]},
-                        title={'text': "景气度指数"},
-                        gauge={
-                            'axis': {'range': [0, 100]},
-                            'bar': {'color': "darkblue"},
-                            'steps': [
-                                {'range': [0, 40], 'color': "red"},
-                                {'range': [40, 70], 'color': "yellow"},
-                                {'range': [70, 100], 'color': "green"}
-                            ]
-                        }
-                    ))
-                    fig.update_layout(height=300)
-                    st.plotly_chart(fig, use_container_width=True)
+                    # score = sentiment_analysis.get("景气度得分", 50)
+                    # fig = go.Figure(go.Indicator(
+                    #     mode="gauge+number",
+                    #     value=score,
+                    #     domain={'x': [0, 1], 'y': [0, 1]},
+                    #     title={'text': "景气度指数"},
+                    #     gauge={
+                    #         'axis': {'range': [0, 100]},
+                    #         'bar': {'color': "darkblue"},
+                    #         'steps': [
+                    #             {'range': [0, 40], 'color': "red"},
+                    #             {'range': [40, 70], 'color': "yellow"},
+                    #             {'range': [70, 100], 'color': "green"}
+                    #         ]
+                    #     }
+                    # ))
+                    # fig.update_layout(height=300)
+                    # st.plotly_chart(fig, use_container_width=True)
 
                     # 趋势判断依据
-                    st.markdown('<div class="sub-header">趋势判断依据</div>', unsafe_allow_html=True)
-                    st.markdown(f"""
-                    <div style="background-color:#f8fafc; padding:1rem; border-radius:6px; line-height:1.6;">
-                        {sentiment_analysis.get("判断依据", "暂无判断依据")}
-                    </div>
-                    """, unsafe_allow_html=True)
+                    # st.markdown('<div class="sub-header">趋势判断依据</div>', unsafe_allow_html=True)
+                    # st.markdown(f"""
+                    # <div style="background-color:#f8fafc; padding:1rem; border-radius:6px; line-height:1.6;">
+                    #     {sentiment_analysis.get("判断依据", "暂无判断依据")}
+                    # </div>
+                    # """, unsafe_allow_html=True)
 
                 with tabs[2]:
                     asset_config = result.get("资产标的与配置", {})
@@ -1008,14 +1177,18 @@ if analysis_mode != "数据看板":
                         st.markdown(f"""
                         <div class="metric-card">
                             <div style="color:#718096; font-size:0.9rem;">行业配置策略</div>
-                            <div style="font-size:1.5rem; font-weight:600; color:#22c55e;">{config_suggest.get('行业配置策略', '未知')}</div>
+                            <div style="font-size:1.5rem; font-weight:600; color:#22c55e; margin-top: 0.3rem;">
+                                {config_suggest.get('行业配置策略', '未知')}
+                            </div>
                         </div>
                         """, unsafe_allow_html=True)
 
                         st.markdown(f"""
                         <div class="metric-card">
                             <div style="color:#718096; font-size:0.9rem;">股票调整方向</div>
-                            <div style="font-size:1.2rem; font-weight:600;">{config_suggest.get('标的调整方向', {}).get('股票', '未知')}</div>
+                            <div style="font-size:1.2rem; font-weight:600; margin-top: 0.3rem;">
+                                {config_suggest.get('标的调整方向', {}).get('股票', '未知')}
+                            </div>
                         </div>
                         """, unsafe_allow_html=True)
 
@@ -1023,14 +1196,18 @@ if analysis_mode != "数据看板":
                         st.markdown(f"""
                         <div class="metric-card">
                             <div style="color:#718096; font-size:0.9rem;">调整幅度建议</div>
-                            <div style="font-size:1rem; font-weight:600;">{config_suggest.get('调整幅度建议', '未知')}</div>
+                            <div style="font-size:1rem; font-weight:600; margin-top: 0.3rem; line-height:1.4;">
+                                {config_suggest.get('调整幅度建议', '未知')}
+                            </div>
                         </div>
                         """, unsafe_allow_html=True)
 
                         st.markdown(f"""
                         <div class="metric-card">
                             <div style="color:#718096; font-size:0.9rem;">债券调整方向</div>
-                            <div style="font-size:1.2rem; font-weight:600;">{config_suggest.get('标的调整方向', {}).get('债券', '未知')}</div>
+                            <div style="font-size:1.2rem; font-weight:600; margin-top: 0.3rem;">
+                                {config_suggest.get('标的调整方向', {}).get('债券', '未知')}
+                            </div>
                         </div>
                         """, unsafe_allow_html=True)
 
@@ -1509,7 +1686,20 @@ if analysis_mode != "数据看板":
                     height=300,
                     title_font_size=14
                 )
-                st.plotly_chart(fig_bar, use_container_width=True)
+                chart_config = {
+                    # 禁用工具栏所有按钮（放大、缩小、下载、平移等）
+                    'displayModeBar': False,
+                    # 可选：若需保留部分按钮，精准禁用指定功能（二选一）
+                    'modeBarButtonsToRemove': [
+                        #     'zoom2d', 'pan2d', 'select2d', 'lasso2d',  # 放大/平移/选择
+                        #     'zoomIn2d', 'zoomOut2d',  # 放大/缩小按钮
+                        'resetScale2d', 'download'  # 重置/下载按钮
+                    ],
+                    # 禁用右键菜单（可选）
+                    'displaylogo': False,
+                    'responsive': True
+                }
+                st.plotly_chart(fig_bar, use_container_width=True, config=chart_config)
 
             # ===================== 4. 主要风险点详情 =====================
             st.subheader("主要风险点详情")
@@ -1721,13 +1911,26 @@ if analysis_mode != "数据看板":
                     # st.markdown("### 负面舆情精准识别")
                     risk_identification = result.get("负面舆情识别", {})
 
-                    # 风险事件详情
-                    st.markdown('<div class="sub-header">风险事件详情</div>', unsafe_allow_html=True)
-                    st.markdown(f"""
-                    <div style="background-color:#f8fafc; padding:1rem; border-radius:6px; line-height:1.6;">
-                        {risk_identification.get("风险事件详情", "暂无详细信息")}
-                    </div>
-                    """, unsafe_allow_html=True)
+                    # 提前处理换行符（规避f-string反斜杠报错）
+                    processed_content = risk_content.replace('\n', '<br>').replace('\r\n',
+                                                                                   '<br>') if risk_content else "暂无舆情内容"
+                    # 标题兜底
+                    show_title = risk_title if risk_title else "暂无标题"
+
+                    # 一体化卡片：标题+内容在同一个容器内
+                    full_html = f"""
+                                           <div style="background-color:#f0f8fb; padding:1.5rem; border-radius:8px; margin-bottom:1.5rem;">
+                                               <!-- 标题行（加粗突出） -->
+                                               <div style="font-size:1.1rem; font-weight:700; color:#2d3748; margin-bottom:1rem; border-bottom:1px solid #e2e8f0; padding-bottom:0.8rem;">
+                                                   {show_title}
+                                               </div>
+                                               <!-- 内容行（紧跟标题下方） -->
+                                               <div style="font-size:1rem; color:#2d3748; line-height:1.8;">
+                                                   {processed_content}
+                                               </div>
+                                           </div>
+                                           """
+                    st.markdown(full_html, unsafe_allow_html=True)
 
                     # 基础风险信息
                     col1, col2, col3 = st.columns(3)
@@ -1767,14 +1970,14 @@ if analysis_mode != "数据看板":
                         else:
                             st.write("未知")
 
-                    with col2:
-                        # 传导路径分析
-                        st.write("**传导路径概览:**")
-                        st.markdown(f"""
-                        <div style="background-color:#f1f5f9; padding:1rem; border-radius:6px; height:100%;">
-                            <strong>市场传导:</strong> {impact_scope.get('传导路径分析', {}).get('市场传导', '未知')}
-                        </div>
-                        """, unsafe_allow_html=True)
+                    # with col2:
+                    #     # 传导路径分析
+                    #     st.write("**传导路径概览:**")
+                    #     st.markdown(f"""
+                    #     <div style="background-color:#f1f5f9; padding:1rem; border-radius:6px; height:100%;">
+                    #         <strong>市场传导:</strong> {impact_scope.get('传导路径分析', {}).get('市场传导', '未知')}
+                    #     </div>
+                    #     """, unsafe_allow_html=True)
 
                     # 详细传导路径
                     st.markdown('<div class="sub-header">传导路径详细分析</div>', unsafe_allow_html=True)
